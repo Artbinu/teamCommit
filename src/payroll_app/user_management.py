@@ -2,6 +2,7 @@
 
 from auth import load_users, save_users, get_user_by_username, hash_password
 
+
 # 사용자 등록
 def register_user(username, password, role):
     users = load_users()
