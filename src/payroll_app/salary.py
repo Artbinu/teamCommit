@@ -3,6 +3,7 @@ import json
 
 SALARY_FILE = "data/salaries.json"
 
+
 # 급여 정보 추가
 def add_salary(user_id, base_salary, tax, net_salary, paid_date):
     if not os.path.exists("data"):
