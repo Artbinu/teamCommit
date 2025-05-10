@@ -5,6 +5,7 @@ from user_management import register_user, edit_user, delete_user, list_users
 from salary import add_salary, edit_salary, delete_salary, view_salary
 from logger import show_logs
 
+
 def user_menu(username):
     while True:
         print(f"\n👤 사용자 메뉴 ({username})")
