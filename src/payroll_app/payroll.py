@@ -8,6 +8,7 @@ from logger import log_action
 
 SALARIES_FILE = "data/salaries.json"
 
+
 # 급여 데이터 불러오기
 def load_salaries():
     if not os.path.exists(SALARIES_FILE):
