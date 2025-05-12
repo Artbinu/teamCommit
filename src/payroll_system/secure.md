@@ -49,22 +49,4 @@ if global_login_attempts >= 5:
 cursor.execute("SELECT password_hash FROM users WHERE username = %s", (username,))
 ```
 
----
 
-## 5. ❌ 에러 미처리 → ✅ 예외 처리로 안정성 확보
-- **기존 문제**: DB 연결 또는 쿼리 실행 시 에러가 발생해도 예외 처리가 없었음.
-- **개선**:
-  - 모든 DB 연산에 `try-except-finally` 문을 적용하여 예외 발생 시 적절한 메시지를 출력하고 리소스를 정리함.
-
----
-
-## 6. ❌ 중복 급여 입력 가능 → 🔜 개선 필요
-- **보완 여지**: 사용자의 급여 정보를 매번 `INSERT`로 삽입하므로 중복 가능성 있음.
-- **개선 방안 (제안)**:
-
-```sql
-INSERT INTO salaries (...) 
-ON DUPLICATE KEY UPDATE base_salary = VALUES(base_salary), ...
-```
-
----
