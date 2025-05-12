@@ -12,39 +12,39 @@ salaries = {
 }
 
 LOCK_DURATION = 30 * 60  # 30분
+global_login_attempts = 0  # 전체 로그인 실패 횟수 추적
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 def check_login(username, password):
+    global global_login_attempts
     user = users.get(username)
-
-    if user is None:
-        print("❌ 사용자 없음")
-        return False
-
     current_time = time.time()
-    if user["lock_time"] and current_time < user["lock_time"]:
+
+    if user and user["lock_time"] and current_time < user["lock_time"]:
         print("⛔ 로그인 실패 5회. 30분 후 다시 시도하세요.")
         return False
 
-    if user["password_hash"] == hash_password(password):
+    if user and user["password_hash"] == hash_password(password):
         print(f"✅ 로그인 성공 ({username})")
         user["login_attempts"] = 0  # 로그인 성공 시 실패 횟수 초기화
         user["lock_time"] = None
+        global_login_attempts = 0  # 전역 실패 횟수 초기화
         return True
     else:
-        user["login_attempts"] += 1
-        print(f"❌ 로그인 실패 ({user['login_attempts']}회)")
+        global_login_attempts += 1  # 존재하지 않는 사용자도 실패 횟수 증가
+        remaining_attempts = 5 - global_login_attempts
+        print(f"❌ 로그인 실패 다시 입력하세요 ({global_login_attempts}회째 시도, 남은 시도 횟수: {remaining_attempts}회)")
 
-        if user["login_attempts"] >= 5:
-            user["lock_time"] = current_time + LOCK_DURATION
-            print("⛔ 로그인 실패 5회! 30분 동안 잠금")
+        if global_login_attempts >= 5:
+            print("⛔ 로그인 실패 5회! 30분 동안 계정 잠금")
 
         return False
 
 def login_prompt():
-    while True:
+    global global_login_attempts
+    while global_login_attempts < 5:
         username = input("아이디 입력: ")
         password = input("비밀번호 입력: ")
 
@@ -54,9 +54,8 @@ def login_prompt():
                 show_salary(username)
             elif role == "admin":
                 admin_actions()
-            break  # 로그인 성공 시 루프 종료
-        else:
-            print("❗ 로그인 실패. 다시 입력하세요.")
+            return  # 로그인 성공 시 함수 종료
+    print("🚫 너무 많은 로그인 실패! 프로그램 종료")
 
 def show_salary(username):
     if username in salaries:
