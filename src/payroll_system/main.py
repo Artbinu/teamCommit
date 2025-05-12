@@ -2,8 +2,11 @@ import hashlib
 import time
 import db_connection
 
-LOCK_DURATION = 30 * 60  # 30분
-global_login_attempts = 0  # 전체 로그인 실패 횟수 추적
+LOCK_DURATION = 30 * 60  # 30분 (초 단위)
+#LOCK_DURATION = 15  #테스트용
+
+global_login_attempts = 0  # 전체 로그인 실패 횟수
+lock_until = 0  # 로그인 잠금 해제 시간
 
 def hash_password(password):
     """비밀번호를 SHA-256으로 해시화"""
@@ -11,22 +14,28 @@ def hash_password(password):
 
 def check_login(username, password):
     """MariaDB 10에서 사용자 인증"""
-    global global_login_attempts
+    global global_login_attempts, lock_until
     conn = db_connection.connect_to_db()
 
     if not conn:
         print("❌ DB 연결 실패")
         return False
 
+    current_time = time.time()
+    
+    # ⛔ 로그인 잠금 여부 확인
+    if global_login_attempts >= 5:
+        if current_time < lock_until:
+            remaining_time = int((lock_until - current_time) / 60)
+            print(f"⛔ 로그인 실패 5회! {remaining_time}분 후 다시 시도하세요.")
+            return False
+        else:
+            global_login_attempts = 0  # 30분 후 실패 횟수 초기화
+
     try:
         with conn.cursor() as cursor:
             cursor.execute("SELECT password_hash FROM users WHERE username = %s", (username,))
             result = cursor.fetchone()
-
-            # ⛔ 로그인 시 계정 잠금 여부 확인
-            if global_login_attempts >= 5:
-                print("⛔ 로그인 실패 5회. 30분 후 다시 시도하세요.")
-                return False
 
             # ✅ 올바른 로그인 처리
             if result and result[0] == hash_password(password):
@@ -37,9 +46,10 @@ def check_login(username, password):
             # ❌ 로그인 실패 처리
             global_login_attempts += 1
             remaining_attempts = 5 - global_login_attempts
-            print(f"❌ 로그인 실패 다시 입력하세요 ({global_login_attempts}회째 시도, 남은 시도 횟수: {remaining_attempts}회)")
+            print(f"❌ 로그인 실패 ({global_login_attempts}회째 시도, 남은 시도: {remaining_attempts}회)")
 
             if global_login_attempts >= 5:
+                lock_until = current_time + LOCK_DURATION
                 print("⛔ 로그인 실패 5회! 30분 동안 로그인 차단")
 
             return False
@@ -79,39 +89,55 @@ def admin_actions():
         print("❌ DB 연결 실패")
         return
 
-    print("===🛠 관리자 기능 🛠===")
-    print("1. 사용자 추가")
-    print("2. 사용자 삭제")
-    print("3. 급여 추가/수정")
-    choice = input("선택: ")
-
     try:
-        with conn.cursor() as cursor:
-            if choice == "1":
-                new_user = input("새 사용자 아이디: ")
-                new_password = input("새 비밀번호: ")
-                cursor.execute("INSERT INTO users (username, password_hash, role) VALUES (%s, SHA2(%s, 256), 'user')", (new_user, new_password))
-                conn.commit()
-                print(f"✅ 사용자 {new_user} 추가 완료")
+        while True:  # 종료를 선택할 때까지 반복
+            print("===🛠 관리자 기능 🛠===")
+            print("1. 사용자 추가")
+            print("2. 사용자 삭제")
+            print("3. 급여 추가/수정")
+            print("4. 사용자 목록 조회")
+            print("5. 종료")
 
-            elif choice == "2":
-                del_user = input("삭제할 사용자 아이디: ")
-                cursor.execute("DELETE FROM users WHERE username = %s", (del_user,))
-                conn.commit()
-                print(f"✅ 사용자 {del_user} 삭제 완료")
+            choice = input("선택: ")
+            
+            if choice == "5":
+                print("🔚 관리자 모드 종료")
+                break  # 반복문 탈출
+            
+            with conn.cursor() as cursor:  # cursor 사용
+                if choice == "1":
+                    new_user = input("새 사용자 아이디: ")
+                    new_password = input("새 비밀번호: ")
+                    full_name = input("사용자 이름: ")
+                    cursor.execute("INSERT INTO users (username, password_hash, full_name, role) VALUES (%s, SHA2(%s, 256), %s, 'user')", (new_user, new_password, full_name))
+                    conn.commit()
+                    print(f"✅ 사용자 {new_user}({full_name}) 추가 완료")
 
-            elif choice == "3":
-                target_user = input("급여 정보를 추가/수정할 사용자 아이디: ")
-                base_salary = int(input("기본 급여 입력: "))
-                tax = int(input("세금 입력: "))
-                net_salary = base_salary - tax
-                cursor.execute("INSERT INTO salaries (user_id, base_salary, tax, net_salary, paid_date) VALUES ((SELECT id FROM users WHERE username = %s), %s, %s, %s, CURDATE())", (target_user, base_salary, tax, net_salary))
-                conn.commit()
-                print(f"✅ 급여 정보 수정 완료 ({target_user})")
+                elif choice == "2":
+                    del_user = input("삭제할 사용자 아이디: ")
+                    cursor.execute("DELETE FROM users WHERE username = %s", (del_user,))
+                    conn.commit()
+                    print(f"✅ 사용자 {del_user} 삭제 완료")
+
+                elif choice == "3":
+                    target_user = input("급여 정보를 추가/수정할 사용자 아이디: ")
+                    base_salary = int(input("기본 급여 입력: "))
+                    tax = int(input("세금 입력: "))
+                    net_salary = base_salary - tax
+                    cursor.execute("INSERT INTO salaries (user_id, base_salary, tax, net_salary, paid_date) VALUES ((SELECT id FROM users WHERE username = %s), %s, %s, %s, CURDATE())", (target_user, base_salary, tax, net_salary))
+                    conn.commit()
+                    print(f"✅ 급여 정보 수정 완료 ({target_user})")
+
+                elif choice == "4":
+                    cursor.execute("SELECT username, full_name FROM users")
+                    users = cursor.fetchall()
+                    print("📜 사용자 목록:")
+                    for user in users:
+                        print(f"👤 {user[0]} ({user[1]})")  # 사용자 아이디와 이름 출력
     except Exception as e:
         print(f"❌ 관리자 기능 수행 실패: {e}")
     finally:
-        conn.close()
+        conn.close()  # 반복문이 끝날 때 한 번만 연결 닫기
 
 def login_prompt():
     """사용자 로그인 프로세스"""
