@@ -6,7 +6,6 @@ import os
 
 USERS_FILE = "data/users.json"
 
-
 # 비밀번호 해시
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
