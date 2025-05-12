@@ -22,25 +22,29 @@ def check_login(username, password):
     user = users.get(username)
     current_time = time.time()
 
-    if user and user["lock_time"] and current_time < user["lock_time"]:
+    # ⛔ 로그인 시 계정 잠금 여부 확인 (모든 사용자에게 동일 적용)
+    if global_login_attempts >= 5:
         print("⛔ 로그인 실패 5회. 30분 후 다시 시도하세요.")
         return False
 
+    # ✅ 올바른 로그인 처리
     if user and user["password_hash"] == hash_password(password):
         print(f"✅ 로그인 성공 ({username})")
-        user["login_attempts"] = 0  # 로그인 성공 시 실패 횟수 초기화
-        user["lock_time"] = None
-        global_login_attempts = 0  # 전역 실패 횟수 초기화
+        global_login_attempts = 0  # ✅ 로그인 성공 시 실패 횟수 초기화
         return True
-    else:
-        global_login_attempts += 1  # 존재하지 않는 사용자도 실패 횟수 증가
-        remaining_attempts = 5 - global_login_attempts
-        print(f"❌ 로그인 실패 다시 입력하세요 ({global_login_attempts}회째 시도, 남은 시도 횟수: {remaining_attempts}회)")
 
-        if global_login_attempts >= 5:
-            print("⛔ 로그인 실패 5회! 30분 동안 계정 잠금")
+    # ❌ 로그인 실패 처리 (존재하는 사용자 여부와 관계없이 적용)
+    global_login_attempts += 1
 
-        return False
+    remaining_attempts = 5 - global_login_attempts
+    print(f"❌ 로그인 실패 다시 입력하세요 ({global_login_attempts}회째 시도, 남은 시도 횟수: {remaining_attempts}회)")
+
+    if global_login_attempts >= 5:
+        print("⛔ 로그인 실패 5회! 30분 동안 로그인 차단")
+
+    return False
+
+
 
 def login_prompt():
     global global_login_attempts
