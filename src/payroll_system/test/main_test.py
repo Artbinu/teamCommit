@@ -14,7 +14,8 @@ def run_tests():
     ]
 
     all_tests = unittest.TestSuite(test_cases)
-    result = unittest.TextTestRunner(all_tests) 
+    runner = unittest.TextTestRunner()  # ✅ 인스턴스 생성
+    runner.run(all_tests)  # ✅ 테스트 실행
 
 if __name__ == "__main__":
     run_tests()
