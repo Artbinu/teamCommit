@@ -1,4 +1,16 @@
-payroll_web/
-│
-│
-└
+project/
+├── app/
+│   ├── __init__.py
+│   ├── routes.py
+│   ├── auth.py
+│   ├── admin.py
+│   ├── user.py
+│   └── db.py
+├── templates/
+│   ├── login.html
+│   ├── admin.html
+│   └── salary.html
+├── static/
+│   └── style.css
+├── run.py
+└── wsgi.py
